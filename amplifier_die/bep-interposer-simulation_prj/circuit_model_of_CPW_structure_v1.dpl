@@ -1,0 +1,31 @@
+<Qucs Schematic 25.1.2>
+<Properties>
+  <View=-951,-553,726,389,1.31623,1,0>
+  <Grid=10,10,0>
+  <DataSet=circuit_model_of_CPW_structure_v1.dat>
+  <DataDisplay=circuit_model_of_CPW_structure_v1.sch>
+  <OpenDisplay=0>
+  <Script=circuit_model_of_CPW_structure_v1.m>
+  <RunScript=0>
+  <showFrame=0>
+  <FrameText0=Title>
+  <FrameText1=Drawn By:>
+  <FrameText2=Date:>
+  <FrameText3=Revision:>
+</Properties>
+<Symbol>
+</Symbol>
+<Components>
+</Components>
+<Wires>
+</Wires>
+<Diagrams>
+  <Rect -820 101 680 435 3 #c0c0c0 1 00 0 0 5e+08 5e+09 0 -31.5265 1 -17.5509 1 -1 1 1 315 0 225 1 0 0 "" "" "">
+	<"dBS33" #ff0000 0 3 0 0 0>
+  </Rect>
+  <Rect -40 114 717 444 3 #c0c0c0 1 00 0 0 5e+08 5e+09 0 -0.35595 0.01 -0.25 1 -1 0.2 1 315 0 225 1 0 0 "" "" "">
+	<"dBS43" #0000ff 0 3 0 0 0>
+  </Rect>
+</Diagrams>
+<Paintings>
+</Paintings>
