@@ -1,0 +1,25 @@
+* TGF2023‑2‑02 28 V / 125 mA common‑source RF amplifier (≈6 GHz demo)
+* Paste into EasyEDA:  File ▸ Import ▸ LT‑Spice netlist
+*-------------------------------------------------------------- POWER
+VDD    VDD     0              DC 28            ; Drain supply (datasheet rec.)       
+VGG    VGG     0              DC -2.80         ; Gate bias to set IDQ ≈125 mA
+*-------------------------------------------------------------- RF I/O
+VIN    VIN     0              AC 1             ; Small‑signal source (50 Ω)
+RIN    VIN     0              50               ; 50 Ω source / generator impedance
+CIN    VIN     GATE           0.5p             ; RF coupling cap  (DC‑block)
+COUT   DRAIN   VOUT           0.5p             ; RF coupling cap  (DC‑block)
+RLOAD  VOUT    0              50               ; 50 Ω output load
+*-------------------------------------------------------------- BIAS
+RG1    VGG     GATE           10k              ; Gate feed / stability
+RG2    GATE    0              1Meg             ; Gate leakage return
+LCHOKE VDD     DRAIN          82n              ; RFC (SRF ≈ >7 GHz)
+CDBP   VDD     0              100p             ; RF bypass (low‑ESL NP0)
+CDBP2  VDD     0              10u              ; Bulk decoupling (tantalum, 35 V)
+*-------------------------------------------------------------- ACTIVE DEVICE
+M1     DRAIN   GATE  0   0    TGF2023          L=0.5u W=100u
+.model TGF2023  nmos (VTO=-2.5 KP=0.22 Lambda=0.01
++                  CGS=0.45p CGD=0.12p RD=0 RS=0)
+*-------------------------------------------------------------- ANALYSIS (optional)
+*.ac dec 100 1Meg 20Gig        ; small‑signal sweep
+*.tran 0 1u                    ; bias check
+.end
