@@ -1,0 +1,36 @@
+<Qucs Schematic 25.1.2>
+<Properties>
+  <View=-161,-166,2363,1336,0.876476,0,75>
+  <Grid=10,10,0>
+  <DataSet=tgf2023_2_02_common_source_amplifier.dat>
+  <DataDisplay=tgf2023_2_02_common_source_amplifier.sch>
+  <OpenDisplay=0>
+  <Script=tgf2023_2_02_common_source_amplifier.m>
+  <RunScript=0>
+  <showFrame=0>
+  <FrameText0=Title>
+  <FrameText1=Drawn By:>
+  <FrameText2=Date:>
+  <FrameText3=Revision:>
+</Properties>
+<Symbol>
+</Symbol>
+<Components>
+</Components>
+<Wires>
+</Wires>
+<Diagrams>
+  <Smith 900 340 200 200 3 #c0c0c0 1 00 1 0 1 1 1 0 4 1 1 0 1 1 315 0 225 1 0 0 "" "" "">
+	<"S[1,1]" #0000ff 1 3 0 0 0>
+	<"S[2,2]" #ff0000 1 3 0 0 0>
+  </Smith>
+  <Rect 110 697 725 587 3 #c0c0c0 1 00 1 0 5e+08 7e+09 1 -50 5 30.667 1 -1 0.2 1 315 0 225 1 0 0 "" "" "">
+	<"dBS21" #0000ff 1 3 0 0 0>
+	  <Mkr 4.9799e+08 192 -598 3 0 0>
+	<"dBS12" #ff0000 1 3 0 0 0>
+	<"dBS22" #ff00ff 1 3 0 0 0>
+	<"dBS11" #00ff00 1 3 0 0 0>
+  </Rect>
+</Diagrams>
+<Paintings>
+</Paintings>
