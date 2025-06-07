@@ -1,147 +1,111 @@
-% corrected_open_short_demo_row_layout.m
+% De-embedding and bump extraction with separate high-quality plots
+% Adds impedance labels at 10 MHz on Smith chart
 clear; close all; clc;
 
 %--- 1) Parameters & files --------------------------------------------
-Z0 = 50;                                 % reference impedance
-f  = (10e6:10e6:10e9).';                % 10 MHz:10 MHz:10 GHz
+Z0 = 50;                                 % reference impedance (Ohm)
+f  = (10e6:10e6:10e9).';                % frequency vector: 10 MHz to 10 GHz
 
 files = { ...
-  'open_line.s1p', ...
-  'short_line.s1p', ...
-  'dut_die_bumps_line.s1p', ...
-  '20250604_die_direct_measurement_after_calibration.s1p' ...
+  'open_line.s1p', ...                   % open calibration
+  'short_line.s1p', ...                  % short calibration
+  'dut_die_bumps_line.s1p', ...          % DUT: line + die + bumps
+  '20250604_die_direct_measurement_after_calibration.s1p' ... % direct die
 };
-labels_raw = {'Open','Short','DUT (line+die+bumps)','Direct die'};
+labels_raw = {'Open','Short','DUT','Direct die'};
 
-%--- 2) Load & interpolate S11 -------------------------------------
+%--- 2) Load & interpolate S11 -----------------------------------------
 S11 = nan(numel(f), numel(files));
 for k = 1:numel(files)
-  sp = sparameters(files{k});                     
-  f_in = sp.Frequencies;                          
-  S_in = squeeze(sp.Parameters(1,1,:));
-  S11(:,k) = interp1(f_in, real(S_in), f, 'linear', 'extrap') ...
-           + 1j*interp1(f_in, imag(S_in), f, 'linear', 'extrap');
+    sp   = sparameters(files{k});                     % read Touchstone
+    f_in = sp.Frequencies;
+    S_in = squeeze(sp.Parameters(1,1,:));
+    S11(:,k) = interp1(f_in, real(S_in), f, 'linear', 'extrap') + ...
+               1j*interp1(f_in, imag(S_in), f, 'linear', 'extrap');
+end
+phase_deg = @(S) unwrap(angle(S)) * 180/pi;             % helper: unwrapped phase [deg]
+
+%--- 3) Open–short de-embedding ---------------------------------------
+Zf   = @(S) Z0 * (1 + S) ./ (1 - S);
+Zoc  = Zf(S11(:,1));    % open
+Zsc  = Zf(S11(:,2));    % short
+Zm   = Zf(S11(:,3));    % DUT (line + die + bumps)
+Zde  = Zoc .* (Zm - Zsc) ./ (Zoc - Zm);                  % de-embedded Z
+
+%--- 4) Extract 3 bumps ---------------------------------------------
+Zdie = Zf(S11(:,4));       % direct-measured die
+Z3b  = Zde - Zdie;          % series subtraction => three bumps
+
+%--- 5) Single-bump extraction ---------------------------------------
+Z1b = (2/3) * Z3b;          % single bump model
+
+%--- convert back to S-parameters ------------------------------------
+Sde  = (Zde - Z0) ./ (Zde + Z0);
+S3b  = (Z3b - Z0) ./ (Z3b + Z0);
+S1b  = (Z1b - Z0) ./ (Z1b + Z0);
+
+% Common plot settings
+fontSz = 14;
+lineW   = 2;
+
+%--- 6a) Smith Chart with Impedance Labels ---------------------------
+figure(1);
+set(gcf, 'Renderer', 'painters', 'Position', [100, 100, 600, 500]);
+smithplot(f/1e9, [S11, Sde, S3b, S1b]);
+title('Smith Chart: Single Gold Bump Extraction','Interpreter','none','FontSize',fontSz);
+legend([labels_raw, {'De-embedded','3 bumps','1 bump'}], 'Location','southwest','FontSize',12);
+set(gca, 'FontSize', fontSz);
+xlabel('Freq (GHz)','FontSize',fontSz);
+
+grid on; axis equal;
+
+% Compute impedance at 10 MHz (first point)
+idx = find(f == 10e6);
+Zvals = { Zoc(idx), Zsc(idx), Zm(idx), Zdie(idx), Zde(idx), Z3b(idx), Z1b(idx) };
+allLabels = [labels_raw, {'De-embedded','3 bumps','1 bump'}];
+
+% Build annotation string
+labelStr = '';
+for n = 1:numel(Zvals)
+    zc = Zvals{n};
+    labelStr = sprintf('%s%s: %.1f %s j%.1f Ω\n', labelStr, allLabels{n}, real(zc), char(177), imag(zc));
 end
 
-% helper for unwrapped phase (degrees)
-phase_deg = @(S) unwrap(angle(S)) * 180/pi;
+% Display textbox in the plot
+annotation('textbox',[0.65,0.15,0.3,0.7], ...
+    'String',labelStr, 'FitBoxToText','on', 'BackgroundColor','white', 'FontSize',10);
 
-%--- 3) Fig1: raw S11 ---------------------------------------------
-figure(1); clf;
-subplot(1,3,1)
-  smithplot(f, S11)
-  title('Raw S_{11} on Smith Plot')
-  legend(labels_raw,'Location','southwest')
+%--- 6b) Magnitude ---------------------------------------------------
+figure(2);
+set(gcf, 'Position', [750, 100, 600, 500]);
+plot(f/1e9, 20*log10(abs([S11, Sde, S3b, S1b])), 'LineWidth', lineW);
+grid on;
+xlabel('Frequency (GHz)', 'FontSize', fontSz);
+ylabel('Magnitude |S11| (dB)', 'FontSize', fontSz);
+title('Magnitude Response','FontSize',fontSz);
+legend([labels_raw, {'De-embedded','3 bumps','1 bump'}], 'Location','southwest','FontSize',12);
+set(gca, 'FontSize', fontSz);
 
-subplot(1,3,2)
-  plot(f/1e9, 20*log10(abs(S11)),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('|S_{11}| (dB)')
-  title('Magnitude vs Frequency')
-  legend(labels_raw,'Location','southwest')
+%--- 6c) Phase -------------------------------------------------------
+figure(3);
+set(gcf, 'Position', [1400, 100, 600, 500]);
+plot(f/1e9, phase_deg([S11, Sde, S3b, S1b]), 'LineWidth', lineW);
+grid on;
+xlabel('Frequency (GHz)', 'FontSize', fontSz);
+ylabel('Phase (Degrees)', 'FontSize', fontSz);
+title('Unwrapped Phase Response','FontSize',fontSz);
+legend([labels_raw, {'De-embedded','3 bumps','1 bump'}], 'Location','southwest','FontSize',12);
+set(gca, 'FontSize', fontSz);
 
-subplot(1,3,3)
-  plot(f/1e9, phase_deg(S11),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('Phase (°)')
-  title('Phase vs Frequency')
-  legend(labels_raw,'Location','southwest')
-
-%--- 4) Open–short de-embedding -----------------------------------
-Z    = @(S) Z0*(1+S)./(1-S);
-Zoc  = Z(S11(:,1));    % open
-Zsc  = Z(S11(:,2));    % short
-Zm   = Z(S11(:,3));    % DUT(line+die+bumps)
-
-Zde  = Zoc .* (Zm - Zsc) ./ (Zoc - Zm);
-Sde  = (Zde - Z0)./(Zde + Z0);
-
-%--- 5) Fig2: + Die+bumps ----------------------------------------
-figure(2); clf;
-subplot(1,3,1)
-  smithplot(f, [S11, Sde])
-  title('+ De-embedded Die+bumps')
-  legend([labels_raw,{'Die+bumps'}],'Location','southwest')
-
-subplot(1,3,2)
-  plot(f/1e9, 20*log10(abs([S11, Sde])),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('|S_{11}| (dB)')
-  title('Magnitude')
-  legend([labels_raw,{'Die+bumps'}],'Location','southwest')
-
-subplot(1,3,3)
-  plot(f/1e9, phase_deg([S11, Sde]),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('Phase (°)')
-  title('Phase')
-  legend([labels_raw,{'Die+bumps'}],'Location','southwest')
-
-%--- 6) Extract 3 bumps ------------------------------------------
-Zdie = Z(S11(:,4));       % direct-measured die
-Z3b  = Zde - Zdie;        % series subtraction → 3 bumps
-S3b  = (Z3b - Z0)./(Z3b + Z0);
-
-%--- 7) Fig3: + 3 bumps -----------------------------------------
-figure(3); clf;
-subplot(1,3,1)
-  smithplot(f, [S11, Sde, S3b])
-  title('+ 3 Gold Bumps')
-  legend([labels_raw,{'Die+bumps','3 bumps'}],'Location','southwest')
-
-subplot(1,3,2)
-  plot(f/1e9, 20*log10(abs([S11, Sde, S3b])),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('|S_{11}| (dB)')
-  title('Magnitude')
-  legend([labels_raw,{'Die+bumps','3 bumps'}],'Location','southwest')
-
-subplot(1,3,3)
-  plot(f/1e9, phase_deg([S11, Sde, S3b]),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('Phase (°)')
-  title('Phase')
-  legend([labels_raw,{'Die+bumps','3 bumps'}],'Location','southwest')
-
-%--- 8) Single-bump extraction ---------------------------------
-Z1b = (2/3) * Z3b;               % single bump from series+parallel model
-S1b = (Z1b - Z0) ./ (Z1b + Z0);
-
-%--- 9) Fig4: + single bump ------------------------------------
-figure(4); clf;
-subplot(1,3,1)
-  smithplot(f, [S11, Sde, S3b, S1b])
-  title('+ Single Gold Bump')
-  legend([labels_raw,{'Die+bumps','3 bumps','1 bump'}],'Location','southwest')
-
-subplot(1,3,2)
-  plot(f/1e9, 20*log10(abs([S11, Sde, S3b, S1b])),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('|S_{11}| (dB)')
-  title('Magnitude')
-  legend([labels_raw,{'Die+bumps','3 bumps','1 bump'}],'Location','southwest')
-
-subplot(1,3,3)
-  plot(f/1e9, phase_deg([S11, Sde, S3b, S1b]),'LineWidth',1.5)
-  grid on
-  xlabel('Freq (GHz)'), ylabel('Phase (°)')
-  title('Phase')
-  legend([labels_raw,{'Die+bumps','3 bumps','1 bump'}],'Location','southwest')
-
-%--- 10) Export single-bump S-parameters to .s1p Touchstone file -------
+%--- 7) Export single-bump S-parameters ------------------------------
 fname = 'single_bump.s1p';
-fid = fopen(fname,'w');
-if fid<0
+fid = fopen(fname, 'w');
+if fid < 0
     error('Could not open %s for writing.', fname);
 end
-
-% Touchstone header: frequency in Hz, S-parameters in Real-Imag format, reference Z0
-fprintf(fid,'# Hz S RI R %g\n', Z0);
-
-% write freq (Hz), real(S11), imag(S11)
 for ii = 1:length(f)
-    fprintf(fid, '%e\t%e\t%e\n', f(ii), real(S1b(ii)), imag(S1b(ii)));
+    S1 = (Z1b(ii) - Z0) / (Z1b(ii) + Z0);
+    fprintf(fid, '%e %e %e\n', f(ii), real(S1), imag(S1));
 end
-
 fclose(fid);
-fprintf('Single-bump S-parameters written to %s\n', fname);
+fprintf('Wrote single-bump S1P file: %s\n', fname);
