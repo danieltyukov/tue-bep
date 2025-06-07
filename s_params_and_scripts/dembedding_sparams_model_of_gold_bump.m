@@ -127,3 +127,21 @@ subplot(1,3,3)
   xlabel('Freq (GHz)'), ylabel('Phase (°)')
   title('Phase')
   legend([labels_raw,{'Die+bumps','3 bumps','1 bump'}],'Location','southwest')
+
+%--- 10) Export single-bump S-parameters to .s1p Touchstone file -------
+fname = 'single_bump.s1p';
+fid = fopen(fname,'w');
+if fid<0
+    error('Could not open %s for writing.', fname);
+end
+
+% Touchstone header: frequency in Hz, S-parameters in Real-Imag format, reference Z0
+fprintf(fid,'# Hz S RI R %g\n', Z0);
+
+% write freq (Hz), real(S11), imag(S11)
+for ii = 1:length(f)
+    fprintf(fid, '%e\t%e\t%e\n', f(ii), real(S1b(ii)), imag(S1b(ii)));
+end
+
+fclose(fid);
+fprintf('Single-bump S-parameters written to %s\n', fname);
