@@ -1,141 +1,101 @@
-%% deembed_bumps.m
-%  Complete 1-port open/short de-embedding with cumulative plots
-%  Author: <your-name>, 07-Jun-2025
-%  -------------------------------------------------------------------------
+% corrected_open_short_demo.m
+clear; close all; clc;
 
-clear, clc, close all
-addpath(genpath(pwd));                    % make sure rfwrite is visible
-Z0 = 50;                                  % reference impedance [Ω]
+%--- 1) Parameters & files --------------------------------------------
+Z0 = 50;                                 % reference impedance
+f  = (10e6:10e6:10e9).';                % 10 MHz:10 MHz:10 GHz
 
-% -------------------------------------------------------------------------
-% 1.  Load raw S-parameter files
-% -------------------------------------------------------------------------
-fnOpen  = 'open_line.s1p';
-fnShort = 'short_line.s1p';
-fnDUT   = 'dut_die_bumps_line.s1p';                     % line + die + 3 bumps
-fnDie   = '20250604_die_direct_measurement_after_calibration.s1p'; % die only
+files = { ...
+  'open_line.s1p', ...
+  'short_line.s1p', ...
+  'dut_die_bumps_line.s1p', ...
+  '20250604_die_direct_measurement_after_calibration.s1p' ...
+};
+labels_raw = {'Open','Short','DUT (line+die+bumps)','Direct die'};
 
-sOpen  = sparameters(fnOpen);
-sShort = sparameters(fnShort);
-sDUT   = sparameters(fnDUT);
-sDie   = sparameters(fnDie);
-
-% -------------------------------------------------------------------------
-% 2.  Common frequency grid (10 MHz – 10 GHz, 10 MHz step)
-% -------------------------------------------------------------------------
-f = (10e6 : 10e6 : 10e9).';                            % 1×1000 points (column)
-
-interpS11 = @(sobj, ftarget) ...
-      interp1(sobj.Frequencies, real(rfparam(sobj,1,1)), ftarget,'linear','extrap') ...
-  + 1i*interp1(sobj.Frequencies, imag(rfparam(sobj,1,1)), ftarget,'linear','extrap');
-
-G.open   = interpS11(sOpen ,f);   Gname.open   = "Open";
-G.short  = interpS11(sShort,f);   Gname.short  = "Short";
-G.dut    = interpS11(sDUT  ,f);   Gname.dut    = "DUT (die+bumps+line)";
-G.die    = interpS11(sDie  ,f);   Gname.die    = "Die (direct)";
-
-% convenient handles
-StoZ = @(S) Z0.*(1+S)./(1-S);
-ZtoS = @(Z)        (Z-Z0)./(Z+Z0);
-
-% colour palette (MATLAB default)
-clr = lines(8);
-
-% small utility that draws a Smith+Magnitude combo ------------------------
-plotCombo = @(figId, Gcell, names, fvec) ...
-    local_plotCombo(figId, Gcell, names, fvec, clr);   %#ok<NASGU>
-% -------------------------------------------------------------------------
-
-% -------------------------------------------------------------------------
-% 3.  FIRST PLOT – raw data (four traces)
-% -------------------------------------------------------------------------
-Glist   = {G.open, G.short, G.dut, G.die};
-namelist = [Gname.open, Gname.short, Gname.dut, Gname.die];
-plotCombo(1, Glist, namelist, f);
-
-% -------------------------------------------------------------------------
-% 4.  Corrected open–short de-embedding  →  die + bumps
-% -------------------------------------------------------------------------
-Zopen   = StoZ(G.open);
-Zshort  = StoZ(G.short);
-Zdut    = StoZ(G.dut);
-
-Zdeb    = Zopen .* (Zdut - Zshort) ./ (Zopen - Zdut);  % eq. (9) in the paper
-G.deb   = ZtoS(Zdeb);
-Gname.deb = "Die + bumps (de-embedded)";
-
-% SECOND PLOT – add de-embedded curve
-Glist   = [Glist, {G.deb}];
-namelist = [namelist, Gname.deb];
-plotCombo(2, Glist, namelist, f);
-
-% -------------------------------------------------------------------------
-% 5.  Remove the die itself  →  3-bump network
-% -------------------------------------------------------------------------
-Zdie  = StoZ(G.die);
-Z3b   = Zdeb - Zdie;                 % series subtraction
-G.b3  = ZtoS(Z3b);
-Gname.b3 = "3 bumps";
-
-% THIRD PLOT – add 3-bump curve
-Glist   = [Glist, {G.b3}];
-namelist = [namelist, Gname.b3];
-plotCombo(3, Glist, namelist, f);
-
-% -------------------------------------------------------------------------
-% 6.  From 3 bumps  →  single bump
-% -------------------------------------------------------------------------
-Z1b    = (2/3)*Z3b;                  % current sharing via two grounds
-G.b1   = ZtoS(Z1b);
-Gname.b1 = "Single bump";
-
-% FOURTH PLOT – add single-bump curve
-Glist   = [Glist, {G.b1}];
-namelist = [namelist, Gname.b1];
-plotCombo(4, Glist, namelist, f);
-
-% -------------------------------------------------------------------------
-% 7.  Export single-bump Touchstone file
-% -------------------------------------------------------------------------
-Smat     = reshape(G.b1,1,1,[]);         % 1×1×N
-sSingle  = sparameters(Smat,f,Z0);
-rfwrite(sSingle,'single_gold_bump.s1p');
-fprintf('single_gold_bump.s1p written (%d points)\n',numel(f));
-
-% =========================================================================
-%  LOCAL FUNCTION – combo plot
-% =========================================================================
-function local_plotCombo(fignum, Gcell, names, f, clr)
-% Draws a Smith chart (top) and |S11| dB vs f (bottom) in the same figure.
-% Inputs:
-%   fignum   – figure handle number
-%   Gcell    – cell array of S11 vectors (same length as f)
-%   names    – string array with legend entries
-%   f        – frequency vector (Hz)
-%   clr      – N×3 colour matrix
-
-n = numel(Gcell);
-figure(fignum);  clf;
-tl = tiledlayout(2,1,'TileSpacing','Compact','Padding','Compact');
-
-% ---- Smith chart --------------------------------------------------------
-axSmith = nexttile(tl,1);
-sp = smithplot(axSmith, real(Gcell{1}) + 1i*imag(Gcell{1}), ...
-               'Color', clr(1,:), 'LineWidth',1.2);  hold(sp,'on');
-for k = 2:n
-    smithplot(axSmith, Gcell{k}, 'Color', clr(k,:), 'LineWidth',1.2);
+%--- 2) Load & interpolate S11 -------------------------------------
+S11 = nan(numel(f), numel(files));
+for k = 1:numel(files)
+  sp = sparameters(files{k});                     % load file
+  f_in = sp.Frequencies;                          % native freq vector
+  S_in = squeeze(sp.Parameters(1,1,:));
+  % interp real/imag onto uniform grid
+  S11(:,k) = interp1(f_in, real(S_in), f, 'linear', 'extrap') ...
+           + 1j*interp1(f_in, imag(S_in), f, 'linear', 'extrap');
 end
-title(axSmith, 'Smith chart');
-legend(axSmith, names,'Location','southoutside','Orientation','horizontal');
 
-% ---- Magnitude ----------------------------------------------------------
-axMag = nexttile(tl,2);  hold(axMag,'on');  grid(axMag,'on');
-for k = 1:n
-    plot(axMag, f/1e9, 20*log10(abs(Gcell{k})), ...
-         'Color',clr(k,:), 'LineWidth',1.2);
-end
-xlabel(axMag,'Frequency (GHz)');
-ylabel(axMag,'|S_{11}| (dB)');
-title(axMag,'Magnitude vs Frequency');
-legend(axMag, names,'Location','southoutside','Orientation','horizontal');
-end
+%--- 3) Fig1: raw S11 ---------------------------------------------
+figure(1); clf;
+subplot(1,2,1)
+smithplot(f, S11)
+title('Fig 1: Raw S_{11} on Smith Plot')
+legend(labels_raw,'Location','southwest')
+
+subplot(1,2,2)
+plot(f/1e9, 20*log10(abs(S11)),'LineWidth',1.5)
+grid on
+xlabel('Frequency (GHz)'), ylabel('|S_{11}| (dB)')
+title('Fig 1: |S_{11}| vs Frequency')
+legend(labels_raw,'Location','southwest')
+
+%--- 4) Open-short de-embedding -------------------------------
+Z = @(S) Z0*(1+S)./(1-S);
+Zoc = Z(S11(:,1));    % open
+Zsc = Z(S11(:,2));    % short
+Zm  = Z(S11(:,3));    % DUT(line+die+bumps)
+
+Zde = Zoc .* (Zm - Zsc) ./ (Zoc - Zm);
+Sde = (Zde - Z0)./(Zde + Z0);
+
+%--- 5) Fig2: + Die+bumps ----------------------------------------
+figure(2); clf;
+subplot(1,2,1)
+smithplot(f, [S11, Sde])
+title('Fig 2: + De-embedded Die+bumps')
+legend([labels_raw,{'Die+bumps'}],'Location','southwest')
+
+subplot(1,2,2)
+plot(f/1e9, 20*log10(abs([S11, Sde])),'LineWidth',1.5)
+grid on
+xlabel('Frequency (GHz)'), ylabel('|S_{11}| (dB)')
+title('Fig 2: |S_{11}|')
+legend([labels_raw,{'Die+bumps'}],'Location','southwest')
+
+%--- 6) Extract 3 bumps ------------------------------------------
+Zdie   = Z(S11(:,4));       % direct‐measured die
+Z3b    = Zde - Zdie;        % series subtraction → 3 bumps
+S3b    = (Z3b - Z0)./(Z3b + Z0);
+
+%--- 7) Fig3: + 3 bumps -----------------------------------------
+figure(3); clf;
+subplot(1,2,1)
+smithplot(f, [S11, Sde, S3b])
+title('Fig 3: + 3 Gold Bumps')
+legend([labels_raw,{'Die+bumps','3 bumps'}],'Location','southwest')
+
+subplot(1,2,2)
+plot(f/1e9, 20*log10(abs([S11, Sde, S3b])),'LineWidth',1.5)
+grid on
+xlabel('Frequency (GHz)'), ylabel('|S_{11}| (dB)')
+title('Fig 3: |S_{11}|')
+legend([labels_raw,{'Die+bumps','3 bumps'}],'Location','southwest')
+
+%--- 8) Compute single gold bump impedance ----------------
+% Topology: series signal bump + two identical ground bumps in parallel
+% => Z3b_total = Zb + (Zb||Zb) = Zb + Zb/2 = 3/2·Zb  ==> Zb = (2/3)·Z3b
+Z1b = (2/3) * Z3b;               % elementwise on your freq vector
+S1b = (Z1b - Z0) ./ (Z1b + Z0);  % back to S11
+
+%--- 9) Fig4: + single bump ------------------------------------
+figure(4); clf;
+subplot(1,2,1)
+smithplot(f, [S11, Sde, S3b, S1b])
+title('Fig 4: + Single Gold Bump')
+legend([labels_raw,{'Die+bumps','3 bumps','1 bump'}],'Location','southwest')
+
+subplot(1,2,2)
+plot(f/1e9, 20*log10(abs([S11, Sde, S3b, S1b])),'LineWidth',1.5)
+grid on
+xlabel('Frequency (GHz)'), ylabel('|S_{11}| (dB)')
+title('Fig 4: |S_{11}|')
+legend([labels_raw,{'Die+bumps','3 bumps','1 bump'}],'Location','southwest')
