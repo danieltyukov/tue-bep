@@ -18,57 +18,54 @@ if ~isempty(idx10)
 end
 
 % Plot
-mask   = f >= 100e6;
-f_GHz  = f(mask) / 1e9;
+mask    = f >= 100e6;
+f_GHz   = f(mask) / 1e9;
 xlimits = [0.1 10];
 
 fig = figure('Color','w', ...
              'Units','normalized', ...
-             'Position',[0.1 0.1 0.8 0.4], ...
+             'Position',[0.1 0.1 0.6 0.7], ...
              'Renderer','painters');
-t = tiledlayout(1,3, 'TileSpacing','compact', 'Padding','compact');
+t = tiledlayout(2,2, 'TileSpacing','compact', 'Padding','compact');
 
 fs = 14;
 lw = 1.5;
 
-% Resistance
-nexttile
+% 1) Resistance (top-left)
+nexttile(1)
 plot(f_GHz, R(mask), 'LineWidth', lw)
 xlabel('Frequency (GHz)', 'FontSize', fs)
-ylabel('R (Ω)',           'FontSize', fs)
-title('Series Resistance', 'FontSize', fs+2)
-xlim(xlimits)
-grid on
+ylabel('R (Ω)',             'FontSize', fs)
+title('Resistance',  'FontSize', fs+2)
+xlim(xlimits); grid on
 set(gca,'FontSize', fs)
 
-% Inductance
-nexttile
-plot(f_GHz, L(mask), 'LineWidth', lw)
+% 2) Inductance (top-right)
+nexttile(2)
+plot(f_GHz, L_eq(mask), 'LineWidth', lw)
 xlabel('Frequency (GHz)', 'FontSize', fs)
 ylabel('L (H)',           'FontSize', fs)
-title('Series Inductance', 'FontSize', fs+2)
-xlim(xlimits)
-grid on
+title('Inductance','FontSize', fs+2)
+xlim(xlimits); grid on
 set(gca,'FontSize', fs)
 
-% Capacitance
-nexttile
-plot(f_GHz, C(mask), 'LineWidth', lw)
-xlabel('Frequency (GHz)', 'FontSize', fs)
-ylabel('C (F)',           'FontSize', fs)
-title('Series Capacitance', 'FontSize', fs+2)
-xlim(xlimits)
-grid on
+% 3) Capacitance (span full width on bottom row)
+nexttile(3, [1 2])
+plot(f_GHz, C_eq(mask), 'LineWidth', lw)
+xlabel('Frequency (GHz)',  'FontSize', fs)
+ylabel('C (F)',            'FontSize', fs)
+title('Capacitance','FontSize', fs+2)
+xlim(xlimits); grid on
 set(gca,'FontSize', fs)
 
-% Overall Title
+% Overall title
 title(t, 'Distributed R, L, C (100 MHz – 10 GHz)', ...
       'FontSize', fs+4, 'FontWeight', 'bold')
 
-% Save as PDF (paper size matches figure size)
+% Adjust paper size and save as PDF
 set(fig, 'Units','Inches');
 figPos = get(fig, 'Position');
 set(fig, 'PaperUnits','Inches', ...
          'PaperSize', [figPos(3) figPos(4)], ...
-         'PaperPosition',[0 0 figPos(3) figPos(4)]);
-print(fig, 'RLC_series_plot', '-dpdf', '-r0');
+         'PaperPosition', [0 0 figPos(3) figPos(4)]);
+print(fig, 'RLC_bump', '-dpdf', '-r0');
