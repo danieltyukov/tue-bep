@@ -1,41 +1,74 @@
-%--- PARAMETERS ------------------------------------------------------------
-filename = 'single_bump.s1p';    % your Touchstone file
-Z0       = 50;                   % assume 50 Ω reference
-f        = (10e6:10e6:10e9).';   % 10 MHz to 10 GHz, 10 MHz step
+% Paramaters
+filename = 'single_bump.s1p';  
+Z0       = 50;                
+data     = load(filename);        
+f        = data(:,1);           
+S11      = data(:,2) + 1j*data(:,3);
 
-%--- LOAD S11 ---------------------------------------------------------------
-s    = sparameters(filename);        % read .s1p
-f    = s.Frequencies;                % overwrite with actual freq vector
-S11  = squeeze(s.Parameters(1,1,:)); % reflection coefficient
+% Compure Z, R, L, C
+Z        = Z0 * (1 + S11) ./ (1 - S11);
+omega    = 2*pi*f;
+R        = real(Z);
+L        = imag(Z) ./ omega;
+C        = -1 ./ (omega .* imag(Z));
 
-%--- IMPEDANCE & R,L_eq,C_eq ------------------------------------------------
-Z     = Z0 * (1 + S11) ./ (1 - S11);
-omega = 2*pi*f;
-R     = real(Z);                     % resistance vs f
-L_eq  = imag(Z) ./ omega;            % equivalent inductance vs f
-C_eq  = -1 ./ (omega .* imag(Z));    % equivalent capacitance vs f
+idx10 = find(abs(f - 10e6) < 1e-6, 1);
+if ~isempty(idx10)
+    fprintf('Resistance at 10 MHz: %.3f Ω\n', R(idx10));
+end
 
-%--- PRINT ONLY R @ 10 MHz -------------------------------------------------
-idx10 = find(abs(f - 10e6) < 1e-3, 1);  % index at 10 MHz
-fprintf('Resistance at 10 MHz: %.3f Ω\n', R(idx10));
-
-%--- PLOT ALL 3 CURVES IN ONE FIGURE (start at 100 MHz) -------------------
+% Plot
 mask   = f >= 100e6;
-f_plot = f(mask)/1e6;    % in MHz
-R_plot = R(mask);
-L_plot = L_eq(mask);
-C_plot = C_eq(mask);
+f_GHz  = f(mask) / 1e9;
+xlimits = [0.1 10];
 
-figure('Name','R, L_{eq}, C_{eq} vs Frequency','NumberTitle','off'); 
-subplot(3,1,1);
-plot(f_plot, R_plot,   'LineWidth',1.2);
-ylabel('R (Ω)');       title('Resistance');             grid on;
+fig = figure('Color','w', ...
+             'Units','normalized', ...
+             'Position',[0.1 0.1 0.8 0.4], ...
+             'Renderer','painters');
+t = tiledlayout(1,3, 'TileSpacing','compact', 'Padding','compact');
 
-subplot(3,1,2);
-plot(f_plot, L_plot,   'LineWidth',1.2);
-ylabel('L_{eq} (H)');  title('Equivalent Inductance');  grid on;
+fs = 14;
+lw = 1.5;
 
-subplot(3,1,3);
-plot(f_plot, C_plot,   'LineWidth',1.2);
-xlabel('Frequency (MHz)'); ylabel('C_{eq} (F)');
-title('Equivalent Capacitance'); grid on;
+% Resistance
+nexttile
+plot(f_GHz, R(mask), 'LineWidth', lw)
+xlabel('Frequency (GHz)', 'FontSize', fs)
+ylabel('R (Ω)',           'FontSize', fs)
+title('Series Resistance', 'FontSize', fs+2)
+xlim(xlimits)
+grid on
+set(gca,'FontSize', fs)
+
+% Inductance
+nexttile
+plot(f_GHz, L(mask), 'LineWidth', lw)
+xlabel('Frequency (GHz)', 'FontSize', fs)
+ylabel('L (H)',           'FontSize', fs)
+title('Series Inductance', 'FontSize', fs+2)
+xlim(xlimits)
+grid on
+set(gca,'FontSize', fs)
+
+% Capacitance
+nexttile
+plot(f_GHz, C(mask), 'LineWidth', lw)
+xlabel('Frequency (GHz)', 'FontSize', fs)
+ylabel('C (F)',           'FontSize', fs)
+title('Series Capacitance', 'FontSize', fs+2)
+xlim(xlimits)
+grid on
+set(gca,'FontSize', fs)
+
+% Overall Title
+title(t, 'Distributed R, L, C (100 MHz – 10 GHz)', ...
+      'FontSize', fs+4, 'FontWeight', 'bold')
+
+% Save as PDF (paper size matches figure size)
+set(fig, 'Units','Inches');
+figPos = get(fig, 'Position');
+set(fig, 'PaperUnits','Inches', ...
+         'PaperSize', [figPos(3) figPos(4)], ...
+         'PaperPosition',[0 0 figPos(3) figPos(4)]);
+print(fig, 'RLC_series_plot', '-dpdf', '-r0');
