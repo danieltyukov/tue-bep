@@ -102,7 +102,7 @@ Achieved high-yield flip-chip assembly:
 - **Lumped element extraction**: RLC bump models
 - **Transmission line modeling**: π-equivalent circuits
 
-![QUCS Circuit Model](final_pics_for_paper/tgf_2023_2_02_cw_model_circuit_qucs.png)
+![QUCS Circuit Model](final_pics_for_paper/rf_simulated_dut_qucs_circuit.png)
 
 ### Design Flow
 1. **Analytical modeling**: Closed-form equations for CPWG on glass
