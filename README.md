@@ -16,15 +16,15 @@ This Bachelor's End Project (BEP) at TU/e focuses on developing and characterizi
 ## Project Structure
 
 ```
-📁 tue-bep/
-├── 📁 amplifier_die/          # RF amplifier component specifications and data
-├── 📁 final_pics_for_paper/   # High-quality images and plots for documentation
-├── 📁 interposer_klayouts/    # KLayout design files for interposer masks
-├── 📁 qucs_simulations_prj/   # RF circuit simulations and modeling
-├── 📁 s_params_and_scripts/   # S-parameter measurements and analysis scripts
-├── 📁 rf_die/                 # RF IC die specifications and layouts
-├── 📁 references/             # Research papers and technical references
-└── 📁 markdown_notes_and_files/ # Project documentation and progress notes
+tue-bep/
+├── amplifier_die/             # RF amplifier component specifications and data
+├── final_pics_for_paper/      # High-quality images and plots for documentation
+├── interposer_klayouts/       # KLayout design files for interposer masks
+├── qucs_simulations_prj/      # RF circuit simulations and modeling
+├── s_params_and_scripts/      # S-parameter measurements and analysis scripts
+├── rf_die/                    # RF IC die specifications and layouts
+├── references/                # Research papers and technical references
+└── markdown_notes_and_files/  # Project documentation and progress notes
 ```
 
 ## Key Results & Achievements
@@ -189,7 +189,3 @@ Achieved high-yield flip-chip assembly:
 ## License & Usage
 
 This project is developed as part of academic research at TU/e. Design files and documentation are provided for educational and research purposes. For commercial applications, please contact the project supervisors.
-
----
-
-*This project demonstrates the feasibility of cost-effective flip-chip bonding for RF applications using simplified processing and standard university equipment. The validated models and process documentation enable future researchers to build upon this foundation for advanced RF System-in-Package development.*
